@@ -17,7 +17,6 @@ mongo_collection = get_mongo_collection() if "mongo" in st.secrets else None
 st.title("🔍 Cycle Matching Audit Tool")
 st.markdown("Compare greedy vs. exhaustive cycle extraction.")
 
-# Load and preprocess data
 def load_all_requests_from_mongo():
     requests = []
     participants = list(mongo_collection.find({}))
@@ -40,7 +39,6 @@ def load_all_requests_from_mongo():
             })
     return requests
 
-# Graph building
 def build_graph(requests):
     G = nx.DiGraph()
     for req in requests:
@@ -52,7 +50,6 @@ def build_graph(requests):
                     G.add_edge(req_a['id'], req_b['id'])
     return G
 
-# Conflict validation
 def violates_offer_conflict(cycle, request_map, used_offers):
     for i in range(len(cycle) - 1):
         giver_id, receiver_id = cycle[i], cycle[i + 1]
@@ -67,7 +64,6 @@ def violates_offer_conflict(cycle, request_map, used_offers):
                     used_offers.add(key)
     return False
 
-# Cycle sampling methods
 def sample_cycles_greedy(G, request_map, max_len=10):
     all_cycles, used_nodes, used_offers = [], set(), set()
     for component in nx.connected_components(G.to_undirected()):
@@ -92,7 +88,6 @@ def sample_cycles_exhaustive(G, request_map, max_len=10):
                 all_cycles.append(cycle)
     return all_cycles
 
-# Cycle description
 def describe_cycles(cycles, request_map):
     rows = []
     for i, cycle in enumerate(cycles):
@@ -106,7 +101,6 @@ def describe_cycles(cycles, request_map):
         rows.append({'cycle_id': i, 'exchange_path': "\n".join(description)})
     return pd.DataFrame(rows)
 
-# UI logic
 if st.button("🔄 Run Cycle Comparison"):
     requests = load_all_requests_from_mongo()
     if not requests:
