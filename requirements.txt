@@ -4,3 +4,4 @@ numpy
 networkx
 openpyxl
 pymongo
+pyvis
