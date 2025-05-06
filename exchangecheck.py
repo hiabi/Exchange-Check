@@ -1,4 +1,4 @@
-# Versión final corregida con retry automático y vista interactiva de ciclos
+# Versión final corregida con retry automático y opción de algoritmo
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -9,8 +9,6 @@ import time
 from io import BytesIO
 from pymongo import MongoClient
 import uuid
-from pyvis.network import Network
-import streamlit.components.v1 as components
 
 @st.cache_resource
 def get_mongo_collection():
@@ -116,6 +114,27 @@ def sample_cycles_greedy(G, request_map, max_len=10):
                     used_nodes.update(cycle)
     return all_cycles
 
+def sample_cycles_exhaustive(G, request_map, max_len=10):
+    all_cycles = []
+    used_nodes = set()
+    used_offers = set()
+
+    for start in G.nodes:
+        stack = [(start, [start])]
+        while stack:
+            node, path = stack.pop()
+            for neighbor in G.successors(node):
+                if neighbor == start and len(path) >= 3:
+                    cycle = path + [start]
+                    if not any(p in used_nodes for p in cycle):
+                        if not violates_offer_conflict(cycle, request_map, used_offers):
+                            all_cycles.append(cycle)
+                            used_nodes.update(cycle)
+                    break
+                elif neighbor not in path and len(path) < max_len:
+                    stack.append((neighbor, path + [neighbor]))
+    return all_cycles
+
 def describe_cycles(cycles, request_map):
     all_cycles = []
     user_cycles = []
@@ -144,22 +163,6 @@ def describe_cycles(cycles, request_map):
 
     return pd.DataFrame(all_cycles), pd.DataFrame(user_cycles)
 
-def render_graph_preview(cycles):
-    if not cycles:
-        st.info("No cycles found to visualize.")
-        return
-    net = Network(height="600px", width="100%", directed=True)
-    displayed = 0
-    for cycle in cycles:
-        if len(cycle) >= 3 and displayed < 3:
-            for i in range(len(cycle) - 1):
-                net.add_node(cycle[i], label=str(cycle[i]))
-                net.add_node(cycle[i+1], label=str(cycle[i+1]))
-                net.add_edge(cycle[i], cycle[i+1])
-            displayed += 1
-    net.repulsion(node_distance=120)
-    net.save_graph("preview_cycles.html")
-    components.html(open("preview_cycles.html", "r", encoding="utf-8").read(), height=620)
 
 st.title("🚗 Car Exchange Platform")
 
@@ -186,6 +189,8 @@ if st.button("Upload File"):
 st.markdown("---")
 st.header("🔄 Run Matching Across All Current Uploads")
 
+algo_option = st.selectbox("Select Matching Algorithm", ["Greedy Packing", "Exhaustive Search"])
+
 if st.button("🧮 Find Exchange Cycles"):
     all_requests = load_all_requests_from_mongo()
     if not all_requests:
@@ -194,7 +199,12 @@ if st.button("🧮 Find Exchange Cycles"):
 
     request_map = {r['id']: r for r in all_requests}
     G = build_graph(all_requests)
-    cycles = sample_cycles_greedy(G, request_map)
+
+    if algo_option == "Greedy Packing":
+        cycles = sample_cycles_greedy(G, request_map)
+    else:
+        cycles = sample_cycles_exhaustive(G, request_map)
+
     df_all, _ = describe_cycles(cycles, request_map)
 
     st.subheader("🔍 Exchange Cycles Preview")
@@ -203,10 +213,6 @@ if st.button("🧮 Find Exchange Cycles"):
     output = BytesIO()
     df_all.to_csv(output, index=False)
     st.download_button("📥 Download All Cycles", data=output.getvalue(), file_name="exchange_cycles.csv", mime="text/csv")
-
-    st.markdown("---")
-    st.subheader("🕸️ Cycle Graph Preview")
-    render_graph_preview(cycles)
 
 st.markdown("---")
 with st.expander("⚠️ Danger Zone - Admin Only"):
