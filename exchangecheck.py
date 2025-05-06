@@ -1,4 +1,4 @@
-# 🔍 Cycle Completeness Checker
+# Cycle Completeness Checker
 import streamlit as st
 import pandas as pd
 import networkx as nx
@@ -14,7 +14,6 @@ def get_mongo_collection():
 
 mongo_collection = get_mongo_collection()
 
-# === Load all requests ===
 def load_all_requests():
     requests = []
     participants = list(mongo_collection.find({}))
@@ -36,7 +35,6 @@ def load_all_requests():
             })
     return requests
 
-# === Graph construction ===
 def build_graph(requests):
     G = nx.DiGraph()
     for r in requests:
@@ -49,7 +47,6 @@ def build_graph(requests):
                 G.add_edge(a["id"], b["id"])
     return G
 
-# === Greedy Matching ===
 def violates_offer_conflict(cycle, request_map, used_offers):
     for i in range(len(cycle) - 1):
         giver = request_map[cycle[i]]
@@ -77,7 +74,6 @@ def greedy_cycles(G, request_map):
                     cycles.append(c)
     return cycles
 
-# === App ===
 st.title("🔍 Cycle Completeness Audit")
 
 all_requests = load_all_requests()
