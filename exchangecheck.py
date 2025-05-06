@@ -82,7 +82,7 @@ def sample_cycles_exhaustive(G, request_map, max_len=10):
     all_cycles, used_offers = [], set()
     cycles = list(nx.simple_cycles(G))
     for cycle in cycles:
-        if len(cycle) < 3 or cycle[0] != cycle[-1]:
+        if len(cycle) < 3:
             cycle.append(cycle[0])
             if not violates_offer_conflict(cycle, request_map, used_offers):
                 all_cycles.append(cycle)
